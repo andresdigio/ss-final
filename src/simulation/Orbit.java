@@ -2,6 +2,7 @@ package simulation;
 
 import model.FastAtan;
 import model.Particle;
+import ovito.Ovito;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,9 +18,9 @@ public class Orbit {
     private static final double VN0 = 1;
     public static final double GRAVITY = 9.8;
 
-    private static final double MAX_TIME = 2;
+    private static final double MAX_TIME = 20;
 
-    private static final double dt = 1e-5;
+    private static final double dt = 1e-6;
     private static final int N = 50;
 
     private static double kn = 10e5;
@@ -30,14 +31,26 @@ public class Orbit {
     private static ArrayList<Particle> particles = new ArrayList<>();
     private static Particle sun;
 
+    private static final int OVITO_DT = 100000;
+    private static final double WIDTH = 300;
+    private static final double HEIGHT = 300;
+
     public static void main(String[] args) {
         energyList = new ArrayList<>();
         simulate();
     }
 
     private static void simulate() {
+        Ovito ovito = null;
+        List<Particle> ovitoParticles = new ArrayList<>();
+        int i=0;
+        try {
+            ovito = new Ovito();
+        }
+        catch (Exception e){
+            System.out.println(e);
+        }
         int particleCount = initializeParticles(N, SPAWN_DISTANCE, 0.5);
-
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
 
         double time = 0;
@@ -50,6 +63,14 @@ public class Orbit {
             updateParticlePositions();
 
             time += dt;
+
+            if(i % OVITO_DT == 0 && ovito != null){
+                ovitoParticles.clear();
+                ovitoParticles.add(sun);
+                ovitoParticles.addAll(particles);
+                ovito.createFile(i/OVITO_DT, ovitoParticles, WIDTH, HEIGHT);
+            }
+            i++;
         }
 
         System.out.println("Min system energy: " + energyList.stream().min(Double::compareTo).get());
@@ -60,7 +81,6 @@ public class Orbit {
     private static double getSystemEnergy(Collection<Particle> particles) {
         return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
     }
-
 
     private static void computeCollisions() {
         for(int i = 0; i < particles.size(); i++) {
