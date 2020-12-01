@@ -14,6 +14,7 @@ public class Orbit {
     private static final double PARTICLE_RADIUS = 1;
     private static final double SPAWN_DISTANCE = 150;
     private static final double VT0 = 5;
+    private static final double VN0 = 1;
     public static final double GRAVITY = 9.8;
 
     private static final double MAX_TIME = 2;
@@ -57,7 +58,7 @@ public class Orbit {
     }
 
     private static double getSystemEnergy(Collection<Particle> particles) {
-        return particles.stream().mapToDouble(Particle::computeEnergy).sum();
+        return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
     }
 
 
@@ -137,8 +138,10 @@ public class Orbit {
 
                 double vt = VT0 * Math.random() * Math.signum(orientationRand);
 
-                double vx = vt * Math.sin(theta);
-                double vy = vt * Math.cos(theta);
+                double vn = (Math.random() - 0.5) * VN0;
+
+                double vx = vt * Math.sin(theta) + vn * Math.cos(theta);
+                double vy = vt * Math.cos(theta) + vn * Math.sin(theta);
                 p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
                 t = System.nanoTime();
                 if(t-t0 > tiempoRazonableNanos) {

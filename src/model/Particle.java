@@ -135,12 +135,12 @@ public class Particle {
         return 0.5*mass*Math.pow(getVelocity(),2);
     }
 
-    public double potentialEnergy() {
-        return Orbit.GRAVITY *Math.abs(y)*mass;
+    public double potentialEnergy(Particle sun) {
+        return Orbit.GRAVITY * getVectorDistance(sun) * mass;
     }
 
-    public double computeEnergy() {
-        return potentialEnergy() + kineticEnergy();
+    public double computeEnergy(Particle sun) {
+        return potentialEnergy(sun) + kineticEnergy();
     }
 
     public double velocity(){
