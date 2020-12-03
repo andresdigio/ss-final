@@ -4,36 +4,44 @@ import model.FastAtan;
 import model.Particle;
 import ovito.Ovito;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.text.NumberFormat;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Orbit {
-    private static final double SUN_MASS = 10000;
+    private static final double SUN_MASS = 5000;
     private static final double SUN_RADIUS = 50;
     private static final double PARTICLE_MASS = 1;
-    private static final double PARTICLE_RADIUS = 1;
-    private static final double SPAWN_DISTANCE = 150;
-    private static final double VT0 = 5;
-    private static final double VN0 = 1;
+    private static final double PARTICLE_RADIUS = 5;
+    private static final double SPAWN_DISTANCE = 300;
+    private static final double VT0 = 13;
+    private static final double VN0 = 2;
     public static final double GRAVITY = 9.8;
 
-    private static final double MAX_TIME = 20;
+    private static final double MAX_TIME = 300;
 
-    private static final double dt = 1e-6;
+    private static final double dt = 1e-5;
     private static final int N = 50;
 
     private static double kn = 10e5;
     private static double kt = 2*kn;
 
     private static List<Double> energyList;
+    private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
-    private static ArrayList<Particle> particles = new ArrayList<>();
+    private static List<Particle> particles = new ArrayList<>();
     private static Particle sun;
 
-    private static final int OVITO_DT = 100000;
+    private static final int FRAME_COUNT = 500;
+    private static final int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
     private static final double WIDTH = 300;
     private static final double HEIGHT = 300;
+
+    public enum Orientation {
+        CLOCK,
+        COUNTER
+    }
 
     public static void main(String[] args) {
         energyList = new ArrayList<>();
@@ -50,7 +58,7 @@ public class Orbit {
         catch (Exception e){
             System.out.println(e);
         }
-        int particleCount = initializeParticles(N, SPAWN_DISTANCE, 0.5);
+        int particleCount = initializeParticles(N, SPAWN_DISTANCE, 0.8);
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
 
         double time = 0;
@@ -60,11 +68,15 @@ public class Orbit {
             particles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
+            particles.removeAll(overlappingSun(particles));
+
             updateParticlePositions();
 
             time += dt;
 
             if(i % OVITO_DT == 0 && ovito != null){
+                System.out.println("Progress: " + defaultFormat.format(time / MAX_TIME));
+                System.out.println(computeOrientationCount(particles));
                 ovitoParticles.clear();
                 ovitoParticles.add(sun);
                 ovitoParticles.addAll(particles);
@@ -78,8 +90,19 @@ public class Orbit {
 
     }
 
+    private static Map<Orientation, Long> computeOrientationCount(Collection<Particle> particles) {
+        Map<Orientation, Long> map = new HashMap<>();
+        map.put(Orientation.CLOCK, particles.stream().filter(p -> p.orientation() == Orientation.CLOCK).count());
+        map.put(Orientation.COUNTER, particles.stream().filter(p -> p.orientation() == Orientation.COUNTER).count());
+        return map;
+    }
+
     private static double getSystemEnergy(Collection<Particle> particles) {
         return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
+    }
+
+    private static Collection<Particle> overlappingSun(Collection<Particle> particles) {
+        return particles.stream().filter(p -> p.isOverlapping(sun)).collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static void computeCollisions() {
@@ -93,7 +116,7 @@ public class Orbit {
                     computeCollision(pi, pj);
                 }
             }
-        };
+        }
     }
 
     private static void computeCollision(Particle pi, Particle pj){
@@ -156,11 +179,11 @@ public class Orbit {
                 // Clockwise if < 0, counterclockwise if > 0
                 double orientationRand = Math.random() - orientationProportion;
 
-                double vt = VT0 * Math.random() * Math.signum(orientationRand);
+                double vt = VT0 * Math.signum(orientationRand);
 
                 double vn = (Math.random() - 0.5) * VN0;
 
-                double vx = vt * Math.sin(theta) + vn * Math.cos(theta);
+                double vx = - vt * Math.sin(theta) + vn * Math.cos(theta);
                 double vy = vt * Math.cos(theta) + vn * Math.sin(theta);
                 p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
                 t = System.nanoTime();

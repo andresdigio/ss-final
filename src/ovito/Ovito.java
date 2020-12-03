@@ -29,9 +29,9 @@ public class Ovito {
             if(!setFileHeader(file, particles.size(), MAX_X, MAX_Y)) {
                 return;
             }
-            int j = 0;
+
             for(Particle p : particles) {
-                file.write(j++ + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + "\n");
+                file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + p.orientation() + "\n");
             }
             file.close();
         }
