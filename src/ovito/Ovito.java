@@ -1,6 +1,7 @@
 package ovito;
 
 import model.Particle;
+import simulation.Orbit;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -31,7 +32,12 @@ public class Ovito {
             }
 
             for(Particle p : particles) {
-                file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + p.orientation() + "\n");
+                if(p.getId() == 0){
+                    file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + "0" + "\n");
+                }
+                else {
+                    file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + (p.orientation() == Orbit.Orientation.CLOCK ? "1" : "-1") + "\n");
+                }
             }
             file.close();
         }
@@ -43,8 +49,8 @@ public class Ovito {
         try {
             file.write(particleCount+2 + "\n");
             file.write("\n");
-            file.write("-2 0.0 0.0 0.0\n");
-            file.write(String.format(Locale.ENGLISH, "-1 %f %f 0.0\n", MAX_X, MAX_Y));
+            file.write("-2 0.0 0.0 0.0 0\n");
+            file.write(String.format(Locale.ENGLISH, "-1 %f %f 0.0 0\n", MAX_X, MAX_Y));
         }
         catch (IOException e){
             return false;
