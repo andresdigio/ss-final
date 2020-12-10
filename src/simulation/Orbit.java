@@ -1,13 +1,20 @@
 package simulation;
 
+import analysis.DataExporter;
 import model.FastAtan;
 import model.Particle;
 import ovito.Ovito;
 
+import java.io.IOException;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import org.apache.commons.cli.*;
+
+import javax.xml.crypto.Data;
+
 
 public class Orbit {
     private static final double SUN_MASS = 5000;
@@ -19,36 +26,70 @@ public class Orbit {
     private static final double VN0 = 2;
     public static final double GRAVITY = 9.8;
 
-    private static final double MAX_TIME = 300;
+    private static double MAX_TIME = 300;
 
-    private static final double dt = 1e-5;
+    private static double dt = 1e-5;
     private static final int N = 50;
 
     private static double kn = 10e5;
     private static double kt = 2*kn;
 
-    private static List<Double> energyList;
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
     private static List<Particle> particles = new ArrayList<>();
     private static Particle sun;
 
     private static final int FRAME_COUNT = 500;
-    private static final int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
+    private static int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
     private static final double WIDTH = 300;
     private static final double HEIGHT = 300;
+
+    private static boolean exportFrames = false, exportEnergy = false;
+
+    private static List<Double> times = new ArrayList<>();
+    private static Map<DataType, List<Double>> export = new HashMap<>();
+    private static final double forceLoss = 0.5;
+
+
+
+    private static final int EXPORT_COUNT = 1000;
+    private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
 
     public enum Orientation {
         CLOCK,
         COUNTER
     }
 
-    public static void main(String[] args) {
-        energyList = new ArrayList<>();
+    public enum DataType {
+        KINETIC_ENERGY("K", "0.###E0"), ENERGY("E", "0.######E0"), PARTICLE_COUNT("n", "0");
+
+        private String name;
+        private DecimalFormat fmt;
+        DataType(String name, String fmt) {
+            this.name = name;
+            this.fmt = new DecimalFormat(fmt);
+        }
+
+        public DecimalFormat getFmt() {
+            return fmt;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+
+    public static void main(String[] args) throws Exception {
+        parseArguments(args);
+        export.put(DataType.ENERGY, new ArrayList<>());
+        export.put(DataType.KINETIC_ENERGY, new ArrayList<>());
+        export.put(DataType.PARTICLE_COUNT, new ArrayList<>());
         simulate();
     }
 
-    private static void simulate() {
+    private static void simulate() throws IOException {
         Ovito ovito = null;
         List<Particle> ovitoParticles = new ArrayList<>();
         int i=0;
@@ -58,13 +99,15 @@ public class Orbit {
         catch (Exception e){
             System.out.println(e);
         }
+
+        DataExporter dataExporter = new DataExporter();
+
         int particleCount = initializeParticles(N, SPAWN_DISTANCE, 0.8);
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
 
         double time = 0;
 
         while(time < MAX_TIME) {
-            energyList.add(getSystemEnergy(particles));
             particles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
@@ -74,7 +117,7 @@ public class Orbit {
 
             time += dt;
 
-            if(i % OVITO_DT == 0 && ovito != null){
+            if(exportFrames && i % OVITO_DT == 0 && ovito != null){
                 System.out.println("Progress: " + defaultFormat.format(time / MAX_TIME));
                 System.out.println(computeOrientationCount(particles));
                 ovitoParticles.clear();
@@ -82,12 +125,22 @@ public class Orbit {
                 ovitoParticles.addAll(particles);
                 ovito.createFile(i/OVITO_DT, ovitoParticles, WIDTH, HEIGHT);
             }
+
+
+            if(i % EXPORT_DT == 0) {
+                if(exportEnergy) {
+                    times.add(time);
+                    export.get(DataType.ENERGY).add(getSystemEnergy(particles));
+                    export.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
+                    export.get(DataType.PARTICLE_COUNT).add((double) particles.size());
+                }
+            }
             i++;
         }
 
-        System.out.println("Min system energy: " + energyList.stream().min(Double::compareTo).get());
-        System.out.println("Max system energy: " + energyList.stream().max(Double::compareTo).get());
-
+        String constantHeader = "dt,N";
+        String constantValues = String.valueOf(dt) + "," + String.valueOf(particleCount);
+        dataExporter.createDataFile(constantValues + ".data", constantHeader, constantValues, Arrays.asList(DataType.ENERGY, DataType.KINETIC_ENERGY, DataType.PARTICLE_COUNT), times, export);
     }
 
     private static Map<Orientation, Long> computeOrientationCount(Collection<Particle> particles) {
@@ -99,6 +152,10 @@ public class Orbit {
 
     private static double getSystemEnergy(Collection<Particle> particles) {
         return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
+    }
+
+    private static double getSystemKineticEnergy(Collection<Particle> particles) {
+        return particles.stream().mapToDouble(Particle::kineticEnergy).sum();
     }
 
     private static Collection<Particle> overlappingSun(Collection<Particle> particles) {
@@ -133,6 +190,8 @@ public class Orbit {
         double Ft = -kt * overlap * (v_rel.get(0) * etx + v_rel.get(1) * ety);
         double Fx = Fn * enx + Ft * etx;
         double Fy = Fn * eny + Ft * ety;
+        Fx *= forceLoss;
+        Fy *= forceLoss;
 
         pi.addNormalForce(Fn);
         pi.addTangentialForce(Math.abs(Ft));
@@ -203,6 +262,55 @@ public class Orbit {
 
         return n;
     }
+
+    private static void parseArguments(String[] args) throws ParseException, InstantiationException, IllegalAccessException {
+        CommandLine commandLine;
+        Option option_dt = Option.builder("dt")
+                .required(false)
+                .desc("dt")
+                .hasArg()
+                .build();
+        Option export_frames = Option.builder("frames")
+                .required(false)
+                .desc("export_frames")
+                .build();
+        Option export_energy = Option.builder("energy")
+                .required(false)
+                .desc("export_energy")
+                .build();
+        Option max_time = Option.builder("T")
+                .required(false)
+                .desc("max_time")
+                .hasArg()
+                .build();
+
+        Options options = new Options();
+        options.addOption(option_dt);
+        options.addOption(export_frames);
+        options.addOption(export_energy);
+        options.addOption(max_time);
+        CommandLineParser parser = new DefaultParser();
+
+        commandLine = parser.parse(options, args);
+
+        if(commandLine.hasOption("dt")) {
+            dt = Double.parseDouble(commandLine.getOptionValue("dt"));
+            OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
+            EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
+        }
+        if(commandLine.hasOption("T")) {
+            MAX_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
+        }
+        if (commandLine.hasOption("kn")) {
+            kn = Double.parseDouble(commandLine.getOptionValue("kn"));
+            kt = 2*kn;
+        }
+
+        exportFrames  = commandLine.hasOption("frames");
+        exportEnergy = commandLine.hasOption("energy");
+
+    }
+
 
 
 }
