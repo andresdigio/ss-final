@@ -18,9 +18,7 @@ public class Ovito {
     public Ovito() throws IOException {
         try {
             Files.createDirectory(results);
-        } catch (FileAlreadyExistsException ignored) {
-
-        }
+        } catch (FileAlreadyExistsException ignored) {}
     }
 
     public void createFile(int i, Collection<Particle> particles, double MAX_X, double MAX_Y){

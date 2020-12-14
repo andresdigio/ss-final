@@ -2,6 +2,7 @@ target/
 .idea/
 *.iml
 
+venv/
 
 results/
 data/

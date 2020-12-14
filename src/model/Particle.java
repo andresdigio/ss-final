@@ -98,17 +98,11 @@ public class Particle {
 
     public Orbit.Orientation orientation() {
         if (x > 0) {
-            if (vy > 0)
-                return Orbit.Orientation.COUNTER;
-            else
-                return Orbit.Orientation.CLOCK;
-        } else if (x == 0){
-            return vx > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
+            return vy > 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
+        } else if (x < 0) {
+            return vy < 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
         } else {
-            if (vy > 0)
-                return Orbit.Orientation.CLOCK;
-            else
-                return Orbit.Orientation.COUNTER;
+            return vx > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
         }
     }
 

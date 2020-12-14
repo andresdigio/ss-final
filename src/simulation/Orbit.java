@@ -13,8 +13,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.commons.cli.*;
 
-import javax.xml.crypto.Data;
-
 
 public class Orbit {
     private static final double SUN_MASS = 5000;
@@ -26,10 +24,11 @@ public class Orbit {
     private static final double VN0 = 2;
     public static final double GRAVITY = 9.8;
 
-    private static double MAX_TIME = 300;
+    private static double MAX_TIME = 50;
+    public static double dt;
 
-    private static double dt = 1e-5;
-    private static final int N = 50;
+    public static int N = 50;
+    private static final double ORIENTATION_PROPORTION = 0.8;
 
     private static double kn = 10e5;
     private static double kt = 2*kn;
@@ -37,7 +36,7 @@ public class Orbit {
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
     private static List<Particle> particles = new ArrayList<>();
-    private static Particle sun;
+    public static Particle sun;
 
     private static final int FRAME_COUNT = 500;
     private static int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
@@ -46,11 +45,8 @@ public class Orbit {
 
     private static boolean exportFrames = false, exportEnergy = false;
 
-    private static List<Double> times = new ArrayList<>();
-    private static Map<DataType, List<Double>> export = new HashMap<>();
+    private static Map<DataType, List<Double>> data = new HashMap<>();
     private static final double forceLoss = 0.5;
-
-
 
     private static final int EXPORT_COUNT = 1000;
     private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
@@ -61,7 +57,11 @@ public class Orbit {
     }
 
     public enum DataType {
-        KINETIC_ENERGY("K", "0.###E0"), ENERGY("E", "0.######E0"), PARTICLE_COUNT("n", "0");
+        TIME("t", "0.###"),
+        KINETIC_ENERGY("K", "0.###E0"),
+        ENERGY("E", "0.######E0"),
+        PARTICLE_COUNT("n", "0"),
+        CLOCKWISE_PARTICLES("clock", "0");
 
         private String name;
         private DecimalFormat fmt;
@@ -83,31 +83,35 @@ public class Orbit {
 
     public static void main(String[] args) throws Exception {
         parseArguments(args);
-        export.put(DataType.ENERGY, new ArrayList<>());
-        export.put(DataType.KINETIC_ENERGY, new ArrayList<>());
-        export.put(DataType.PARTICLE_COUNT, new ArrayList<>());
-        simulate();
+        initializeDataArrays();
+
+        for (int i = 1; i <= 3; i++) {
+            N = 25 * i;
+
+            simulate();
+
+            DataExporter dataExporter = new DataExporter();
+            String fileName = dt + "," + N + ".data";
+
+            dataExporter.export(data, fileName);
+        }
+    }
+
+    private static void initializeDataArrays() {
+        for (DataType dataType : getVariableDataHeader())
+            data.put(dataType, new ArrayList<>());
     }
 
     private static void simulate() throws IOException {
-        Ovito ovito = null;
+        Ovito ovito = new Ovito();
         List<Particle> ovitoParticles = new ArrayList<>();
-        int i=0;
-        try {
-            ovito = new Ovito();
-        }
-        catch (Exception e){
-            System.out.println(e);
-        }
-
-        DataExporter dataExporter = new DataExporter();
-
-        int particleCount = initializeParticles(N, SPAWN_DISTANCE, 0.8);
+        int i = 0;
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
+        initializeParticles(N, SPAWN_DISTANCE, ORIENTATION_PROPORTION);
 
         double time = 0;
 
-        while(time < MAX_TIME) {
+        while (time < MAX_TIME) {
             particles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
@@ -117,9 +121,9 @@ public class Orbit {
 
             time += dt;
 
-            if(exportFrames && i % OVITO_DT == 0 && ovito != null){
+            if (exportFrames && i % OVITO_DT == 0) {
                 System.out.println("Progress: " + defaultFormat.format(time / MAX_TIME));
-                System.out.println(computeOrientationCount(particles));
+                System.out.println(computeOrientationCount());
                 ovitoParticles.clear();
                 ovitoParticles.add(sun);
                 ovitoParticles.addAll(particles);
@@ -127,26 +131,25 @@ public class Orbit {
             }
 
 
-            if(i % EXPORT_DT == 0) {
-                if(exportEnergy) {
-                    times.add(time);
-                    export.get(DataType.ENERGY).add(getSystemEnergy(particles));
-                    export.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
-                    export.get(DataType.PARTICLE_COUNT).add((double) particles.size());
+            if (i % EXPORT_DT == 0) {
+                if (exportEnergy) {
+                    data.get(DataType.TIME).add(time);
+                    data.get(DataType.ENERGY).add(getSystemEnergy(particles));
+                    data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
+                    data.get(DataType.PARTICLE_COUNT).add((double) particles.size());
+                    data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
                 }
             }
             i++;
         }
-
-        String constantHeader = "dt,N";
-        String constantValues = String.valueOf(dt) + "," + String.valueOf(particleCount);
-        dataExporter.createDataFile(constantValues + ".data", constantHeader, constantValues, Arrays.asList(DataType.ENERGY, DataType.KINETIC_ENERGY, DataType.PARTICLE_COUNT), times, export);
     }
 
-    private static Map<Orientation, Long> computeOrientationCount(Collection<Particle> particles) {
+    private static Map<Orientation, Long> computeOrientationCount() {
         Map<Orientation, Long> map = new HashMap<>();
-        map.put(Orientation.CLOCK, particles.stream().filter(p -> p.orientation() == Orientation.CLOCK).count());
-        map.put(Orientation.COUNTER, particles.stream().filter(p -> p.orientation() == Orientation.COUNTER).count());
+
+        map.put(Orientation.CLOCK, getParticlesMoving(Orientation.CLOCK));
+        map.put(Orientation.COUNTER, getParticlesMoving(Orientation.COUNTER));
+
         return map;
     }
 
@@ -156,6 +159,10 @@ public class Orbit {
 
     private static double getSystemKineticEnergy(Collection<Particle> particles) {
         return particles.stream().mapToDouble(Particle::kineticEnergy).sum();
+    }
+
+    private static Long getParticlesMoving(Orientation orientation) {
+        return particles.stream().filter(p -> p.orientation() == orientation).count();
     }
 
     private static Collection<Particle> overlappingSun(Collection<Particle> particles) {
@@ -223,22 +230,23 @@ public class Orbit {
     private static int initializeParticles(int N, double distance, double orientationProportion) {
         Particle p;
 
-        long tiempoRazonableNanos = 2 * (long) 1e9;
+        long reasonableTimeInNanos = 2 * (long) 1e9;
         long t0 = System.nanoTime();
         long t = t0;
         int n = 0;
         int id = 1;
-        while((t-t0) < tiempoRazonableNanos && n < N) {
+        while ((t-t0) < reasonableTimeInNanos && n < N) {
             boolean add = true;
             do {
                 double theta = Math.random() * 2*Math.PI;
                 double x = distance * Math.cos(theta);
                 double y = distance * Math.sin(theta);
 
-                // Clockwise if < 0, counterclockwise if > 0
-                double orientationRand = Math.random() - orientationProportion;
+                // Clockwise if < 0, counterclockwise if > 0.
+                // The orientationProportion defines how many (%) particles will start moving in a clockwise motion.
+                double randomOrientation = Math.random() - orientationProportion;
 
-                double vt = VT0 * Math.signum(orientationRand);
+                double vt = VT0 * Math.signum(randomOrientation);
 
                 double vn = (Math.random() - 0.5) * VN0;
 
@@ -246,24 +254,26 @@ public class Orbit {
                 double vy = vt * Math.cos(theta) + vn * Math.sin(theta);
                 p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
                 t = System.nanoTime();
-                if(t-t0 > tiempoRazonableNanos) {
+
+                if (t-t0 > reasonableTimeInNanos) {
                     add = false;
                     break;
                 }
             } while (!p.isValid(particles));
 
-            if(add) {
+            if (add) {
                 id++;
                 particles.add(p);
                 n++;
             }
+
             t = System.nanoTime();
         }
 
         return n;
     }
 
-    private static void parseArguments(String[] args) throws ParseException, InstantiationException, IllegalAccessException {
+    private static void parseArguments(String[] args) throws ParseException {
         CommandLine commandLine;
         Option option_dt = Option.builder("dt")
                 .required(false)
@@ -308,9 +318,15 @@ public class Orbit {
 
         exportFrames  = commandLine.hasOption("frames");
         exportEnergy = commandLine.hasOption("energy");
-
     }
 
-
+    public static List<Orbit.DataType> getVariableDataHeader() {
+        return Arrays.asList(
+                DataType.TIME,
+                DataType.ENERGY,
+                DataType.KINETIC_ENERGY,
+                DataType.PARTICLE_COUNT,
+                DataType.CLOCKWISE_PARTICLES);
+    }
 
 }
