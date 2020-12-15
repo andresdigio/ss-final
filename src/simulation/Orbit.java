@@ -37,6 +37,7 @@ public class Orbit {
 
     private static List<Particle> particles = new ArrayList<>();
     public static Particle sun;
+    public static double o = 0.5;
 
     private static final int FRAME_COUNT = 500;
     private static int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
@@ -83,9 +84,9 @@ public class Orbit {
 
     public static void main(String[] args) throws Exception {
         parseArguments(args);
-        initializeDataArrays();
 
-        for (int i = 1; i <= 3; i++) {
+        for (int i = 1; i <= 2; i++) {
+            initializeDataArrays();
             N = 25 * i;
 
             simulate();
@@ -107,7 +108,8 @@ public class Orbit {
         List<Particle> ovitoParticles = new ArrayList<>();
         int i = 0;
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
-        initializeParticles(N, SPAWN_DISTANCE, ORIENTATION_PROPORTION);
+        initializeParticles(N, SPAWN_DISTANCE, o);
+        System.out.println(particles.size());
 
         double time = 0;
 
@@ -133,6 +135,7 @@ public class Orbit {
 
             if (i % EXPORT_DT == 0) {
                 if (exportEnergy) {
+                    System.out.println(DecimalFormat.getPercentInstance().format(time/MAX_TIME));
                     data.get(DataType.TIME).add(time);
                     data.get(DataType.ENERGY).add(getSystemEnergy(particles));
                     data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
@@ -229,6 +232,7 @@ public class Orbit {
 
     private static int initializeParticles(int N, double distance, double orientationProportion) {
         Particle p;
+        particles.clear();
 
         long reasonableTimeInNanos = 2 * (long) 1e9;
         long t0 = System.nanoTime();
@@ -293,12 +297,18 @@ public class Orbit {
                 .desc("max_time")
                 .hasArg()
                 .build();
+        Option orientation = Option.builder("o")
+                .required(false)
+                .desc("orientation_rate")
+                .hasArg()
+                .build();
 
         Options options = new Options();
         options.addOption(option_dt);
         options.addOption(export_frames);
         options.addOption(export_energy);
         options.addOption(max_time);
+        options.addOption(orientation);
         CommandLineParser parser = new DefaultParser();
 
         commandLine = parser.parse(options, args);
@@ -311,9 +321,8 @@ public class Orbit {
         if(commandLine.hasOption("T")) {
             MAX_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
         }
-        if (commandLine.hasOption("kn")) {
-            kn = Double.parseDouble(commandLine.getOptionValue("kn"));
-            kt = 2*kn;
+        if (commandLine.hasOption("o")) {
+            o = Double.parseDouble(commandLine.getOptionValue("o"));
         }
 
         exportFrames  = commandLine.hasOption("frames");
