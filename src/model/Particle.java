@@ -22,7 +22,7 @@ public class Particle {
     private double fn;
     private double ft;
     private ToDoubleBiFunction<Double, Double> force;
-    private boolean isColliding = false;
+    private boolean isColliding;
 
     public void applyForce(double fx, double fy) {
         ax += fx/mass;

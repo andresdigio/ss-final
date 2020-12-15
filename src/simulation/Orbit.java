@@ -28,16 +28,18 @@ public class Orbit {
     public static double dt;
 
     public static int N = 50;
-    private static final double ORIENTATION_PROPORTION = 0.8;
 
     private static double kn = 10e5;
     private static double kt = 2*kn;
+
+    private static double slidingWindow = 0.01;     // Probando a ojimetro
+    private static ArrayDeque<Collection<Particle>> collidedParticles = new ArrayDeque<>();
 
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
     private static List<Particle> particles = new ArrayList<>();
     public static Particle sun;
-    public static double o = 0.5;
+    public static double o = 0.55;
 
     private static final int FRAME_COUNT = 500;
     private static int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
@@ -62,7 +64,8 @@ public class Orbit {
         KINETIC_ENERGY("K", "0.###E0"),
         ENERGY("E", "0.######E0"),
         PARTICLE_COUNT("n", "0"),
-        CLOCKWISE_PARTICLES("clock", "0");
+        CLOCKWISE_PARTICLES("clock", "0"),
+        WINDOW_COLLISIONS("window", "0");
 
         private String name;
         private DecimalFormat fmt;
@@ -85,10 +88,10 @@ public class Orbit {
     public static void main(String[] args) throws Exception {
         parseArguments(args);
 
-        for (int i = 1; i <= 2; i++) {
-            initializeDataArrays();
-            N = 25 * i;
+        for (int i = 2; i <= 2; i++) {
+            N = 10 * i;
 
+            initializeDataArrays();
             simulate();
 
             DataExporter dataExporter = new DataExporter();
@@ -106,6 +109,7 @@ public class Orbit {
     private static void simulate() throws IOException {
         Ovito ovito = new Ovito();
         List<Particle> ovitoParticles = new ArrayList<>();
+        long windowIterations =  (long) (slidingWindow / dt);
         int i = 0;
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
         initializeParticles(N, SPAWN_DISTANCE, o);
@@ -115,10 +119,14 @@ public class Orbit {
 
         while (time < MAX_TIME) {
             particles.forEach(Particle::clearForces);
-            computeCollisions();
+
+            if (collidedParticles.size() > windowIterations) {
+                collidedParticles.poll();
+            }
+
+            computeCollisions(collidedParticles);
             computeGravityForces();
             particles.removeAll(overlappingSun(particles));
-
             updateParticlePositions();
 
             time += dt;
@@ -141,6 +149,9 @@ public class Orbit {
                     data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
                     data.get(DataType.PARTICLE_COUNT).add((double) particles.size());
                     data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
+                    double collidedCount = collidedParticles.stream().mapToDouble(Collection::size).sum();
+                    double collisionsInWindow = collidedCount / slidingWindow;
+                    data.get(DataType.WINDOW_COLLISIONS).add(collisionsInWindow);
                 }
             }
             i++;
@@ -172,7 +183,9 @@ public class Orbit {
         return particles.stream().filter(p -> p.isOverlapping(sun)).collect(Collectors.toCollection(ArrayList::new));
     }
 
-    private static void computeCollisions() {
+    private static void computeCollisions(ArrayDeque<Collection<Particle>> collidedParticles) {
+        Collection<Particle> collidedParticlesInCurrentWindow = new LinkedList<>();
+
         for(int i = 0; i < particles.size(); i++) {
             Particle pi = particles.get(i);
             for (int j = i + 1; j < particles.size(); j++) {
@@ -181,9 +194,12 @@ public class Orbit {
                     pi.setColliding(true);
                     pj.setColliding(true);
                     computeCollision(pi, pj);
+                    collidedParticlesInCurrentWindow.add(pi);
                 }
             }
         }
+
+        collidedParticles.add(collidedParticlesInCurrentWindow);
     }
 
     private static void computeCollision(Particle pi, Particle pj){
@@ -239,6 +255,7 @@ public class Orbit {
         long t = t0;
         int n = 0;
         int id = 1;
+        particles = new ArrayList<>();
         while ((t-t0) < reasonableTimeInNanos && n < N) {
             boolean add = true;
             do {
@@ -335,7 +352,8 @@ public class Orbit {
                 DataType.ENERGY,
                 DataType.KINETIC_ENERGY,
                 DataType.PARTICLE_COUNT,
-                DataType.CLOCKWISE_PARTICLES);
+                DataType.CLOCKWISE_PARTICLES,
+                DataType.WINDOW_COLLISIONS);
     }
 
 }
