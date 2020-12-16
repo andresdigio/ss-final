@@ -32,8 +32,9 @@ public class Orbit {
     private static double kn = 10e5;
     private static double kt = 2*kn;
 
-    private static double slidingWindow = 0.01;     // Probando a ojimetro
-    private static ArrayDeque<Collection<Particle>> collidedParticles = new ArrayDeque<>();
+    private static double slidingWindow = 0.8;     // Probando a ojimetro
+//    private static List<Double> collidedParticles = new ArrayList<>();
+    private static double collidedParticles = 0;
 
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
@@ -65,7 +66,7 @@ public class Orbit {
         ENERGY("E", "0.######E0"),
         PARTICLE_COUNT("n", "0"),
         CLOCKWISE_PARTICLES("clock", "0"),
-        WINDOW_COLLISIONS("window", "0");
+        COLLISIONS("collisions", "0");
 
         private String name;
         private DecimalFormat fmt;
@@ -88,7 +89,7 @@ public class Orbit {
     public static void main(String[] args) throws Exception {
         parseArguments(args);
 
-        for (int i = 2; i <= 2; i++) {
+        for (int i = 3; i <= 3; i++) {
             N = 10 * i;
 
             initializeDataArrays();
@@ -119,12 +120,7 @@ public class Orbit {
 
         while (time < MAX_TIME) {
             particles.forEach(Particle::clearForces);
-
-            if (collidedParticles.size() > windowIterations) {
-                collidedParticles.poll();
-            }
-
-            computeCollisions(collidedParticles);
+            computeCollisions();
             computeGravityForces();
             particles.removeAll(overlappingSun(particles));
             updateParticlePositions();
@@ -149,10 +145,10 @@ public class Orbit {
                     data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
                     data.get(DataType.PARTICLE_COUNT).add((double) particles.size());
                     data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
-                    double collidedCount = collidedParticles.stream().mapToDouble(Collection::size).sum();
-                    double collisionsInWindow = collidedCount / slidingWindow;
-                    data.get(DataType.WINDOW_COLLISIONS).add(collisionsInWindow);
+                    data.get(DataType.COLLISIONS).add(collidedParticles);
                 }
+
+                collidedParticles = 0;
             }
             i++;
         }
@@ -183,9 +179,7 @@ public class Orbit {
         return particles.stream().filter(p -> p.isOverlapping(sun)).collect(Collectors.toCollection(ArrayList::new));
     }
 
-    private static void computeCollisions(ArrayDeque<Collection<Particle>> collidedParticles) {
-        Collection<Particle> collidedParticlesInCurrentWindow = new LinkedList<>();
-
+    private static void computeCollisions() {
         for(int i = 0; i < particles.size(); i++) {
             Particle pi = particles.get(i);
             for (int j = i + 1; j < particles.size(); j++) {
@@ -194,12 +188,10 @@ public class Orbit {
                     pi.setColliding(true);
                     pj.setColliding(true);
                     computeCollision(pi, pj);
-                    collidedParticlesInCurrentWindow.add(pi);
+                    collidedParticles++;
                 }
             }
         }
-
-        collidedParticles.add(collidedParticlesInCurrentWindow);
     }
 
     private static void computeCollision(Particle pi, Particle pj){
@@ -353,7 +345,7 @@ public class Orbit {
                 DataType.KINETIC_ENERGY,
                 DataType.PARTICLE_COUNT,
                 DataType.CLOCKWISE_PARTICLES,
-                DataType.WINDOW_COLLISIONS);
+                DataType.COLLISIONS);
     }
 
 }

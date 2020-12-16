@@ -32,11 +32,8 @@ def plot_clockwise_particles(df):
     plt.plot(df.t, clockwise_percentage, label=df['N'][0])
 
 
-def plot_collisions_per_window(df):
-    collisions = df.loc[df['window'] != 0]
-    t = df.t
-    window = df.window
-    plt.plot(t[window > 0], window[window > 0], linestyle='dotted', label=df['N'][0])
+def plot_collisions(df):
+    plt.scatter(df.t, df.collisions, linestyle='-', label=df['N'][0], marker='.')
 
 
 # Copy-pasted function, not sure what is going on but it sorts the legend labels in decreasing order
@@ -50,9 +47,7 @@ def plot_results(y_label, plot_function):
     plt.figure()
     plt.xlabel('Tiempo [s]')
     plt.ylabel(y_label)
-
     [plot_function(pd.read_csv(data_file)) for data_file in data_files_paths]
-
     handles, labels = get_handles_and_labels_for_sorted_legend()
     legend = plt.legend(handles, labels, loc='best', title='Partículas iniciales\nen el sistema')
     plt.setp(legend.get_title(), multialignment='center')
@@ -60,8 +55,8 @@ def plot_results(y_label, plot_function):
     plt.close()
 
 
-# plot_results('Energía total [J]', plot_total_energy)
-# plot_results('Energía cinética [J]', plot_kinetic_energy)
-# plot_results('% de partículas en sentido horario', plot_clockwise_particles)
-plot_results('Colisiones por ventana', plot_collisions_per_window)
-# plot_results('Cantidad de partículas', plot_count)
+plot_results('Energía total [J]', plot_total_energy)
+plot_results('Energía cinética [J]', plot_kinetic_energy)
+plot_results('% de partículas en sentido horario', plot_clockwise_particles)
+plot_results('Colisiones', plot_collisions)
+plot_results('Cantidad de partículas', plot_count)
