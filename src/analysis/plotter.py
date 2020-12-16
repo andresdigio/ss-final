@@ -11,6 +11,25 @@ data_folder = os.path.abspath(os.path.join(curr_dir, os.pardir, os.pardir, 'data
 data_files_paths = [os.path.join(data_folder, file_name) for file_name in os.listdir(data_folder)
                     if file_name.endswith('.data')]
 
+def plot_survivors(N=20):
+    df = pd.read_csv(data_folder + '/survivors.csv')
+    df = df[df['N'] == N]
+    df['o'] = df.apply(lambda x: x.o*100, axis=1)
+    df['s_rate'] = df.apply(lambda x: x.s*100/x.N, axis=1)
+    plt.figure()
+    gp = df.groupby(['o'])
+    means = gp.mean()
+    error = gp.std()
+
+    plt.xlabel('Distribucion de orientacion inicial en sentido horario [%]')
+    plt.ylabel('Porcentaje de supervivencia en equilibrio [%]')
+    plt.errorbar(means.index, means['s_rate'], yerr=error['s_rate'], marker='o', fmt='o', mfc='c', capthick=10, ms=7)
+
+    plt.savefig('C:/Users/Andres/ss-final/graphs/{:d}_survival.png'.format(N))
+    plt.show()
+
+def plot_energy_dt(df):
+    plt.plot(df.t, df.E, label=df['dt'][0])
 
 def plot_count(df):
     plt.yticks(np.arange(0, 31, 2))
@@ -27,9 +46,11 @@ def plot_kinetic_energy(df):
 
 
 def plot_clockwise_particles(df):
+    plt.ylim(bottom=0, top=105)
     clockwise_percentage = df['clock']/df['n'] * 100
-    plt.ylim(bottom=0, top=100)
-    plt.plot(df.t, clockwise_percentage, label=df['N'][0])
+    label='{:d}'.format(int(df['o'].mode()[0]*100))
+    plt.plot(df.t, clockwise_percentage, label=label, linestyle='dotted')
+
 
 
 def plot_collisions(df):
@@ -49,14 +70,17 @@ def plot_results(y_label, plot_function):
     plt.ylabel(y_label)
     [plot_function(pd.read_csv(data_file)) for data_file in data_files_paths]
     handles, labels = get_handles_and_labels_for_sorted_legend()
-    legend = plt.legend(handles, labels, loc='best', title='Partículas iniciales\nen el sistema')
+    legend = plt.legend(handles, labels, loc='best', title='Proporción inicial\nen el sistema')
     plt.setp(legend.get_title(), multialignment='center')
+    #plt.savefig('C:/Users/Andres/ss-final/graphs/stationary.png')
     plt.show()
     plt.close()
 
 
-plot_results('Energía total [J]', plot_total_energy)
-plot_results('Energía cinética [J]', plot_kinetic_energy)
-plot_results('% de partículas en sentido horario', plot_clockwise_particles)
-plot_results('Colisiones', plot_collisions)
-plot_results('Cantidad de partículas', plot_count)
+#plot_results('Energía total [J]', plot_total_energy)
+#plot_results('Energía cinética [J]', plot_kinetic_energy)
+#plot_results('% de partículas en sentido horario', plot_clockwise_particles)
+#plot_results('Colisiones', plot_collisions)
+#plot_results('Cantidad de partículas', plot_count)
+
+plot_survivors(N=20)

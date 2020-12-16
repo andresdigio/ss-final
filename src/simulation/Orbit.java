@@ -27,6 +27,8 @@ public class Orbit {
     private static double MAX_TIME = 50;
     public static double dt;
 
+    public static int timeIdx = 0;
+
     public static int N = 50;
 
     private static double kn = 10e5;
@@ -38,7 +40,8 @@ public class Orbit {
 
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
 
-    private static List<Particle> particles = new ArrayList<>();
+    private static List<Particle> livingParticles = new ArrayList<>();
+    private static List<Particle> particleHistory = new ArrayList<>();
     public static Particle sun;
     public static double o = 0.55;
 
@@ -52,6 +55,7 @@ public class Orbit {
     private static Map<DataType, List<Double>> data = new HashMap<>();
     private static final double forceLoss = 0.5;
 
+    private static List<Integer> exportIdxs = new ArrayList<>();
     private static final int EXPORT_COUNT = 1000;
     private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
 
@@ -89,10 +93,11 @@ public class Orbit {
     public static void main(String[] args) throws Exception {
         parseArguments(args);
 
-        for (int i = 3; i <= 3; i++) {
-            N = 10 * i;
+        for (int i = 2; i <= 2; i++) {
+            N = 20;
 
             initializeDataArrays();
+            timeIdx = 0;
             simulate();
 
             DataExporter dataExporter = new DataExporter();
@@ -103,6 +108,7 @@ public class Orbit {
     }
 
     private static void initializeDataArrays() {
+        particleHistory = new ArrayList<>();
         for (DataType dataType : getVariableDataHeader())
             data.put(dataType, new ArrayList<>());
     }
@@ -114,25 +120,32 @@ public class Orbit {
         int i = 0;
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
         initializeParticles(N, SPAWN_DISTANCE, o);
-        System.out.println(particles.size());
+        System.out.println(livingParticles.size());
 
         double time = 0;
 
         while (time < MAX_TIME) {
-            particles.forEach(Particle::clearForces);
+            livingParticles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
-            particles.removeAll(overlappingSun(particles));
             updateParticlePositions();
+            time += dt;
 
+
+            livingParticles.forEach(Particle::computeOrientation);
+
+            Collection<Particle> overlappingSun = overlappingSun(livingParticles);
+            overlappingSun.forEach(Orbit::correctOrientationHistory);
+
+            particleHistory.addAll(overlappingSun);
+            livingParticles.removeAll(overlappingSun(livingParticles));
             time += dt;
 
             if (exportFrames && i % OVITO_DT == 0) {
                 System.out.println("Progress: " + defaultFormat.format(time / MAX_TIME));
-                System.out.println(computeOrientationCount());
                 ovitoParticles.clear();
                 ovitoParticles.add(sun);
-                ovitoParticles.addAll(particles);
+                ovitoParticles.addAll(livingParticles);
                 ovito.createFile(i/OVITO_DT, ovitoParticles, WIDTH, HEIGHT);
             }
 
@@ -141,27 +154,38 @@ public class Orbit {
                 if (exportEnergy) {
                     System.out.println(DecimalFormat.getPercentInstance().format(time/MAX_TIME));
                     data.get(DataType.TIME).add(time);
-                    data.get(DataType.ENERGY).add(getSystemEnergy(particles));
-                    data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
-                    data.get(DataType.PARTICLE_COUNT).add((double) particles.size());
-                    data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
+                    data.get(DataType.ENERGY).add(getSystemEnergy(livingParticles));
+                    data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(livingParticles));
+                    data.get(DataType.PARTICLE_COUNT).add((double) livingParticles.size());
+                    // data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
                     data.get(DataType.COLLISIONS).add(collidedParticles);
+                    exportIdxs.add(timeIdx);
                 }
 
                 collidedParticles = 0;
             }
             i++;
+            timeIdx++;
         }
+        System.out.println(livingParticles.size());
+
+        livingParticles.forEach(Orbit::correctOrientationHistory);
+        particleHistory.addAll(livingParticles);
+
+        for (int j : exportIdxs) {
+            double clockCount = 0;
+            for (Particle p : particleHistory) {
+                if(p.getOrientationBuffer().size() > j && p.getOrientationBuffer().get(j) == Orientation.CLOCK) {
+                    clockCount += 1;
+                }
+            }
+
+            data.get(DataType.CLOCKWISE_PARTICLES).add(clockCount);
+        }
+
     }
 
-    private static Map<Orientation, Long> computeOrientationCount() {
-        Map<Orientation, Long> map = new HashMap<>();
 
-        map.put(Orientation.CLOCK, getParticlesMoving(Orientation.CLOCK));
-        map.put(Orientation.COUNTER, getParticlesMoving(Orientation.COUNTER));
-
-        return map;
-    }
 
     private static double getSystemEnergy(Collection<Particle> particles) {
         return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
@@ -171,27 +195,39 @@ public class Orbit {
         return particles.stream().mapToDouble(Particle::kineticEnergy).sum();
     }
 
-    private static Long getParticlesMoving(Orientation orientation) {
-        return particles.stream().filter(p -> p.orientation() == orientation).count();
-    }
-
     private static Collection<Particle> overlappingSun(Collection<Particle> particles) {
         return particles.stream().filter(p -> p.isOverlapping(sun)).collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static void computeCollisions() {
-        for(int i = 0; i < particles.size(); i++) {
-            Particle pi = particles.get(i);
-            for (int j = i + 1; j < particles.size(); j++) {
-                Particle pj = particles.get(j);
+        for(int i = 0; i < livingParticles.size(); i++) {
+            Particle pi = livingParticles.get(i);
+            for (int j = i + 1; j < livingParticles.size(); j++) {
+                Particle pj = livingParticles.get(j);
                 if (pi.isOverlapping(pj)) {
                     pi.setColliding(true);
                     pj.setColliding(true);
                     computeCollision(pi, pj);
                     collidedParticles++;
+
+                    correctOrientationHistory(pi);
+                    correctOrientationHistory(pj);
                 }
             }
         }
+    }
+
+    private static void correctOrientationHistory(Particle p)
+    {
+        Orientation resultOr = p.getOrientationBuffer().subList(p.getLastCollision(), timeIdx).stream().
+                filter(or -> or == Orientation.COUNTER).count() > (p.getOrientationBuffer().
+                size() / 2) ? Orientation.COUNTER:Orientation.CLOCK;
+
+        for (int i = p.getLastCollision(); i < timeIdx; i++) {
+            p.getOrientationBuffer().set(i, resultOr);
+        }
+
+        p.setLastCollision(timeIdx);
     }
 
     private static void computeCollision(Particle pi, Particle pj){
@@ -219,11 +255,11 @@ public class Orbit {
     }
 
     private static void updateParticlePositions(){
-        particles.parallelStream().forEach(p -> p.move(dt));
+        livingParticles.parallelStream().forEach(p -> p.move(dt));
     }
 
     private static void computeGravityForces() {
-        particles.forEach(Orbit::computeGravityForces);
+        livingParticles.forEach(Orbit::computeGravityForces);
     }
 
     private static void computeGravityForces(Particle p) {
@@ -240,14 +276,16 @@ public class Orbit {
 
     private static int initializeParticles(int N, double distance, double orientationProportion) {
         Particle p;
-        particles.clear();
+        livingParticles.clear();
 
         long reasonableTimeInNanos = 2 * (long) 1e9;
         long t0 = System.nanoTime();
         long t = t0;
         int n = 0;
         int id = 1;
-        particles = new ArrayList<>();
+        livingParticles = new ArrayList<>();
+
+        int positiveCount = (int) Math.floor(orientationProportion * N);
         while ((t-t0) < reasonableTimeInNanos && n < N) {
             boolean add = true;
             do {
@@ -255,28 +293,28 @@ public class Orbit {
                 double x = distance * Math.cos(theta);
                 double y = distance * Math.sin(theta);
 
-                // Clockwise if < 0, counterclockwise if > 0.
-                // The orientationProportion defines how many (%) particles will start moving in a clockwise motion.
-                double randomOrientation = Math.random() - orientationProportion;
+                double sign = -1;
+                if(positiveCount-- <= 0)
+                    sign = 1;
 
-                double vt = VT0 * Math.signum(randomOrientation);
+                double vt = VT0 * Math.signum(sign);
 
                 double vn = (Math.random() - 0.5) * VN0;
 
                 double vx = - vt * Math.sin(theta) + vn * Math.cos(theta);
                 double vy = vt * Math.cos(theta) + vn * Math.sin(theta);
-                p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
+                p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).orientationBuffer(new ArrayList<>()).build();
                 t = System.nanoTime();
 
                 if (t-t0 > reasonableTimeInNanos) {
                     add = false;
                     break;
                 }
-            } while (!p.isValid(particles));
+            } while (!p.isValid(livingParticles));
 
             if (add) {
                 id++;
-                particles.add(p);
+                livingParticles.add(p);
                 n++;
             }
 

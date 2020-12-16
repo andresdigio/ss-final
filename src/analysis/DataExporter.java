@@ -33,7 +33,7 @@ public class DataExporter {
         for (int i = 0; i < rows; i++) {
             StringBuilder sb = new StringBuilder();
 
-            sb.append(Orbit.dt).append(",").append(Orbit.N).append(",");
+            sb.append(Orbit.dt).append(",").append(Orbit.N).append(",").append(Orbit.o).append(",");
 
             List<Orbit.DataType> dataHeader = Orbit.getVariableDataHeader();
 
@@ -63,6 +63,6 @@ public class DataExporter {
     private String getFileHeader() {
         List<Orbit.DataType> dataHeader = Orbit.getVariableDataHeader();
 
-        return "dt,N," + dataHeader.stream().map(Objects::toString).collect(Collectors.joining(","));
+        return "dt,N,o," + dataHeader.stream().map(Objects::toString).collect(Collectors.joining(","));
     }
 }
