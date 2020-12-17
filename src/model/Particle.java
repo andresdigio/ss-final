@@ -90,8 +90,8 @@ public class Particle {
         prevParticle = Particle.builder().x(x).y(y).build();
         x = nextX;
         y = nextY;
-        vx = (x - prevParticle.x) / dt;
-        vy = (y - prevParticle.y) / dt;
+        vx = 0.5 *(x - prevParticle.x) / dt;
+        vy = 0.5 * (y - prevParticle.y) / dt;
     }
 
     public void checkPrevParticle(double dt) {
