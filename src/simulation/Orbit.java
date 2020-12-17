@@ -93,7 +93,7 @@ public class Orbit {
         parseArguments(args);
 
         for (int i = 2; i <= 2; i++) {
-            N = 20;
+            N = 50;
 
             initializeDataArrays();
             timeIdx = 0;
@@ -246,24 +246,19 @@ public class Orbit {
         Particle p;
         particles.clear();
 
-        long reasonableTimeInNanos = 2 * (long) 1e9;
-        long t0 = System.nanoTime();
-        long t = t0;
         int n = 0;
         int id = 1;
         particles = new ArrayList<>();
 
         int positiveCount = (int) Math.floor(orientationProportion * N);
-        while ((t-t0) < reasonableTimeInNanos && n < N) {
-            boolean add = true;
+        for (; n < N; n++) {
             do {
                 double theta = Math.random() * 2*Math.PI;
                 double x = distance * Math.cos(theta);
                 double y = distance * Math.sin(theta);
 
-                double sign = -1;
-                if(positiveCount-- <= 0)
-                    sign = 1;
+                long positive = particles.stream().filter(particle -> particle.getOrientation() == Orientation.CLOCK).count();
+                double sign = positive >= positiveCount ? 1 : -1;
 
                 double vt = VT0 * Math.signum(sign);
 
@@ -271,22 +266,10 @@ public class Orbit {
 
                 double vx = - vt * Math.sin(theta) + vn * Math.cos(theta);
                 double vy = vt * Math.cos(theta) + vn * Math.sin(theta);
-                p = Particle.builder().id(n).x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
-                t = System.nanoTime();
-
-                if (t-t0 > reasonableTimeInNanos) {
-                    add = false;
-                    break;
-                }
+                p = Particle.builder().x(x).y(y).mass(PARTICLE_MASS).radius(PARTICLE_RADIUS).vx(vx).vy(vy).fn(0).ft(0).id(id).build();
             } while (!p.isValid(particles));
-
-            if (add) {
-                id++;
-                particles.add(p);
-                n++;
-            }
-
-            t = System.nanoTime();
+            id++;
+            particles.add(p);
         }
 
         return n;
