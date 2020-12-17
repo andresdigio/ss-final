@@ -112,6 +112,16 @@ public class Particle {
         orientationBuffer.add(o);
     }
 
+    public Orbit.Orientation getOrientation() {
+        if (x > 0) {
+            return vy > 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
+        } else if (x < 0) {
+            return vy < 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
+        } else {
+            return vx > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
+        }
+    }
+
     private double getFx(){
         return mass * ax;
     }

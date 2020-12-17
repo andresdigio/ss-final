@@ -79,8 +79,8 @@ def plot_results(y_label, plot_function):
 
 #plot_results('Energía total [J]', plot_total_energy)
 #plot_results('Energía cinética [J]', plot_kinetic_energy)
-#plot_results('% de partículas en sentido horario', plot_clockwise_particles)
+plot_results('% de partículas en sentido horario', plot_clockwise_particles)
 #plot_results('Colisiones', plot_collisions)
 #plot_results('Cantidad de partículas', plot_count)
 
-plot_survivors(N=20)
+#plot_survivors(N=50)

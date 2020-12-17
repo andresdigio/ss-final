@@ -139,6 +139,9 @@ public class Orbit {
 
             particleHistory.addAll(overlappingSun);
             livingParticles.removeAll(overlappingSun(livingParticles));
+
+
+
             time += dt;
 
             if (exportFrames && i % OVITO_DT == 0) {

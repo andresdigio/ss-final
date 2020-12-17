@@ -34,7 +34,7 @@ public class Ovito {
                     file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + "0" + "\n");
                 }
                 else {
-                    file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + (p.orientation() == Orbit.Orientation.CLOCK ? "1" : "-1") + "\n");
+                    file.write(p.getId() + " " + p.getX() + " " + p.getY() + " " + p.getRadius() + " " + (p.getOrientation() == Orbit.Orientation.CLOCK ? "1" : "-1") + "\n");
                 }
             }
             file.close();
