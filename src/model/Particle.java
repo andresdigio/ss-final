@@ -24,10 +24,6 @@ public class Particle {
     private ToDoubleBiFunction<Double, Double> force;
     private boolean isColliding;
 
-    private int lastCollision = 0;   //timeIdx
-    private List<Orbit.Orientation> orientationBuffer;
-    private Orbit.Orientation ovitoOrientation;
-
     public void applyForce(double fx, double fy) {
         ax += fx/mass;
         ay += fy/mass;
@@ -100,26 +96,9 @@ public class Particle {
         }
     }
 
-    public void computeOrientation() {
-        Orbit.Orientation o;
-        if (x > 0) {
-            o = vy > 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
-        } else if (x < 0) {
-            o = vy < 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
-        } else {
-            o = vx > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
-        }
-        orientationBuffer.add(o);
-    }
-
     public Orbit.Orientation getOrientation() {
-        if (x > 0) {
-            return vy > 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
-        } else if (x < 0) {
-            return vy < 0 ? Orbit.Orientation.COUNTER : Orbit.Orientation.CLOCK;
-        } else {
-            return vx > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
-        }
+        double prod = (vx * y) + (vy * -x);
+        return prod > 0 ? Orbit.Orientation.CLOCK : Orbit.Orientation.COUNTER;
     }
 
     private double getFx(){
