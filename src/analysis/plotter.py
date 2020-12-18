@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sb
 
 # Current directory
 curr_dir = os.getcwd()
@@ -34,6 +35,8 @@ def plot_energy_dt(df):
 def plot_count(df):
     plt.yticks(np.arange(0, 31, 2))
     plt.grid(b=True, which='both', axis='y', linestyle=':')
+
+
     plt.plot(df.t, df.n, label=df['N'][0])
 
 
@@ -47,10 +50,13 @@ def plot_kinetic_energy(df):
 
 def plot_clockwise_particles(df):
     plt.ylim(bottom=0, top=105)
-    clockwise_percentage = df['clock']/df['n'] * 100
-    label='{:d}'.format(int(df['o'].mode()[0]*100))
-    plt.plot(df.t, clockwise_percentage, label=label, linestyle='dotted')
+    df['cp'] = df['clock']/df['n'] * 100
 
+    gp = df.groupby(['t'])
+    means = gp.mean()
+    error = gp.std()
+    label = '{:d}'.format(int(df['o'].mode()[0]*100))
+    plt.errorbar(means.index, means.cp, yerr=error.cp, label=label, fmt='o', marker='o', capthick=10, ms=3)
 
 
 def plot_collisions(df):
@@ -70,9 +76,8 @@ def plot_results(y_label, plot_function):
     plt.ylabel(y_label)
     [plot_function(pd.read_csv(data_file)) for data_file in data_files_paths]
     handles, labels = get_handles_and_labels_for_sorted_legend()
-    legend = plt.legend(handles, labels, loc='best', title='Proporción inicial\nen el sistema')
+    legend = plt.legend(handles, labels, loc='lower left', title='Proporción inicial\nen el sistema')
     plt.setp(legend.get_title(), multialignment='center')
-    #plt.savefig('C:/Users/Andres/ss-final/graphs/stationary.png')
     plt.show()
     plt.close()
 

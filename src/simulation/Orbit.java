@@ -55,7 +55,7 @@ public class Orbit {
     private static final double forceLoss = 0.5;
 
     private static List<Integer> exportIdxs = new ArrayList<>();
-    private static final int EXPORT_COUNT = 1000;
+    private static final int EXPORT_COUNT = 10;
     private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
 
     public enum Orientation {
@@ -93,7 +93,7 @@ public class Orbit {
         parseArguments(args);
 
         for (int i = 2; i <= 2; i++) {
-            N = 50;
+            N = 20;
 
             initializeDataArrays();
             timeIdx = 0;
