@@ -144,5 +144,5 @@ def plot_time_with_mean_and_error(orientation_percentages):
 # plot_results('% de partículas en sentido horario', plot_clockwise_particles)
 # plot_results('Colisiones', plot_collisions)
 # plot_results('Cantidad de partículas', plot_count)
-plot_time_with_mean_and_error(orientation_percentages=[50, 70])
+plot_time_with_mean_and_error(orientation_percentages=[50, 70, 90])
 # plot_survivors(N=50)

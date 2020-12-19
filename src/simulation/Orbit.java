@@ -24,11 +24,12 @@ public class Orbit {
     private static final double VN0 = 2;
     public static final double G = 10;     // Gravitational constant! Not to be confused with gravitational acceleration (g)
 
-    private static double STABILITY_TIME = 50;
+    private static double STABILITY_TIME = 0;
+    private static double MAX_TIME = 0;
     public static double dt;
 
     public static int timeIdx = 0;
-    public static double lastCollisionTime = 0;
+    public static double lastDeathTime = 0;
     public static double time = 0;
 
     public static int N = 50;
@@ -103,6 +104,7 @@ public class Orbit {
             if (fileOut == null)
              fileOut = dt + "," + N + ".data";
 
+            System.out.println("Saving data file to: " + fileOut);
             dataExporter.export(data, fileOut);
         }
     }
@@ -112,26 +114,36 @@ public class Orbit {
             data.put(dataType, new ArrayList<>());
     }
 
+    private static boolean isDone() {
+        if (MAX_TIME == 0) {
+            return time - lastDeathTime >= STABILITY_TIME;
+        }
+        return time >= MAX_TIME;
+    }
+
     private static void simulate() throws IOException {
         Ovito ovito = new Ovito();
         List<Particle> ovitoParticles = new ArrayList<>();
-        long windowIterations =  (long) (slidingWindow / dt);
         int i = 0;
         sun = Particle.builder().mass(SUN_MASS).radius(SUN_RADIUS).x(0).y(0).id(0).build();
         initializeParticles(N, SPAWN_DISTANCE, o);
         System.out.println(particles.size());
 
         time = 0;
-        lastCollisionTime = 0;
+        lastDeathTime = 0;
 
-        while (time - lastCollisionTime < STABILITY_TIME) {
+        while (!isDone()) {
             particles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
             updateParticlePositions();
             time += dt;
 
-            particles.removeAll(overlappingSun(particles));
+            Collection<Particle> deadParticles = overlappingSun(particles);
+            if (deadParticles.size() > 0) {
+                lastDeathTime = time;
+            }
+            particles.removeAll(deadParticles);
 
             time += dt;
 
@@ -176,7 +188,6 @@ public class Orbit {
             for (int j = i + 1; j < particles.size(); j++) {
                 Particle pj = particles.get(j);
                 if (pi.isOverlapping(pj)) {
-                    lastCollisionTime = time;
                     pi.setColliding(true);
                     pj.setColliding(true);
                     computeCollision(pi, pj);
@@ -284,6 +295,11 @@ public class Orbit {
                 .desc("max_time")
                 .hasArg()
                 .build();
+        Option stability_time = Option.builder("ST")
+                .required(false)
+                .desc("stability_time")
+                .hasArg()
+                .build();
         Option orientation = Option.builder("o")
                 .required(false)
                 .desc("orientation_rate")
@@ -300,6 +316,7 @@ public class Orbit {
         options.addOption(export_frames);
         options.addOption(export_data);
         options.addOption(max_time);
+        options.addOption(stability_time);
         options.addOption(orientation);
         options.addOption(output);
         CommandLineParser parser = new DefaultParser();
@@ -311,8 +328,11 @@ public class Orbit {
             OVITO_DT = (int) (1 / dt);
             EXPORT_DT = (int) (1 / dt);
         }
+        if(commandLine.hasOption("ST")) {
+            STABILITY_TIME = Double.parseDouble(commandLine.getOptionValue("ST"));
+        }
         if(commandLine.hasOption("T")) {
-            STABILITY_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
+            MAX_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
         }
         if (commandLine.hasOption("o")) {
             o = Double.parseDouble(commandLine.getOptionValue("o"));
