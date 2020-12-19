@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sb
 
 # Current directory
 curr_dir = os.getcwd()
@@ -33,7 +32,6 @@ def plot_survivors(N=20):
     plt.ylabel('Porcentaje de supervivencia en equilibrio [%]')
     plt.errorbar(means.index, means['s_rate'], yerr=error['s_rate'], marker='o', fmt='o', mfc='c', capthick=10, ms=7)
 
-    plt.savefig('C:/Users/Andres/ss-final/graphs/{:d}_survival.png'.format(N))
     plt.show()
 
 
@@ -98,7 +96,7 @@ def calc_df_sum(dataframes, col_name):
 def plot_count_with_mean_and_error(orientation_percentages):
     plt.figure()
     plt.xlabel('Tiempo [s]')
-    plt.ylabel('% de partículas en sentido horario')
+    plt.ylabel('Cantidad de particulas')
 
     for percentage in orientation_percentages:
         data_frames = [pd.read_csv(data_file) for data_file in get_data_files(str(percentage))]
@@ -114,11 +112,37 @@ def plot_count_with_mean_and_error(orientation_percentages):
     plt.show()
     plt.close()
 
+def plot_time_with_mean_and_error(orientation_percentages):
+    plt.figure()
+    plt.ylabel('Tiempo [s]')
+    plt.xlabel('Distribucion de orientacion inicial en sentido horario [%]')
+
+    df = pd.DataFrame(orientation_percentages)
+
+    for percentage in orientation_percentages:
+        data_frames = [pd.read_csv(data_file) for data_file in get_data_files(str(percentage))]
+        times = [df.iloc[-1].t for df in data_frames]
+        tmpdf = pd.DataFrame(times, columns=['t'])
+        tmpdf['o'] = percentage
+
+        df = df.append(tmpdf)
+
+        gp = df.groupby(['o'])
+        means = gp.mean()
+        error = gp.std()
+        plt.grid(b=True, which='both', axis='y', linestyle=':')
+        plt.errorbar(means.index, means['t'], yerr=error['t'], marker='.', fmt='o', mfc='c', capthick=2, ms=7, label=percentage)
+
+    handles, labels = get_handles_and_labels_for_sorted_legend()
+    legend = plt.legend(handles, labels, loc='best', title='% de partículas')
+    plt.setp(legend.get_title(), multialignment='center')
+    plt.show()
+    plt.close()
 
 # plot_results('Energía total [J]', plot_total_energy)
 # plot_results('Energía cinética [J]', plot_kinetic_energy)
 # plot_results('% de partículas en sentido horario', plot_clockwise_particles)
 # plot_results('Colisiones', plot_collisions)
 # plot_results('Cantidad de partículas', plot_count)
-plot_count_with_mean_and_error(orientation_percentages=[50, 70, 90])
+plot_time_with_mean_and_error(orientation_percentages=[50, 70])
 # plot_survivors(N=50)

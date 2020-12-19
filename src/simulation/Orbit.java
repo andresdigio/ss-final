@@ -18,16 +18,18 @@ public class Orbit {
     private static final double SUN_MASS = 5000;
     private static final double SUN_RADIUS = 50;
     private static final double PARTICLE_MASS = 1;
-    private static final double PARTICLE_RADIUS = 5;
+    private static final double PARTICLE_RADIUS = 2;
     private static final double SPAWN_DISTANCE = 300;
     private static final double VT0 = 13;
     private static final double VN0 = 2;
-    public static final double G = 9.8;     // Gravitational constant! Not to be confused with gravitational acceleration (g)
+    public static final double G = 10;     // Gravitational constant! Not to be confused with gravitational acceleration (g)
 
-    private static double MAX_TIME = 50;
+    private static double STABILITY_TIME = 50;
     public static double dt;
 
     public static int timeIdx = 0;
+    public static double lastCollisionTime = 0;
+    public static double time = 0;
 
     public static int N = 50;
 
@@ -44,20 +46,19 @@ public class Orbit {
     public static Particle sun;
     public static double o = 0.55;
 
-    private static final int FRAME_COUNT = 500;
-    private static int OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
+    private static final int FRAME_COUNT = 100;
+    private static int OVITO_DT = (int) (1 / dt);
     private static final double WIDTH = 300;
     private static final double HEIGHT = 300;
 
-    private static boolean exportFrames = false, exportEnergy = false;
+    private static boolean exportFrames = false, exportData = false;
     private static String fileOut = null;
 
     private static Map<DataType, List<Double>> data = new HashMap<>();
     private static final double forceLoss = 0.5;
 
     private static List<Integer> exportIdxs = new ArrayList<>();
-    private static final int EXPORT_COUNT = 5;
-    private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
+    private static int EXPORT_DT = (int) (1 / dt);
 
     public enum Orientation {
         CLOCK,
@@ -66,8 +67,6 @@ public class Orbit {
 
     public enum DataType {
         TIME("t", "0.###"),
-        KINETIC_ENERGY("K", "0.###E0"),
-        ENERGY("E", "0.######E0"),
         PARTICLE_COUNT("n", "0"),
         CLOCKWISE_PARTICLES("clock", "0"),
         COLLISIONS("collisions", "0");
@@ -122,9 +121,10 @@ public class Orbit {
         initializeParticles(N, SPAWN_DISTANCE, o);
         System.out.println(particles.size());
 
-        double time = 0;
+        time = 0;
+        lastCollisionTime = 0;
 
-        while (time < MAX_TIME) {
+        while (time - lastCollisionTime < STABILITY_TIME) {
             particles.forEach(Particle::clearForces);
             computeCollisions();
             computeGravityForces();
@@ -133,12 +133,9 @@ public class Orbit {
 
             particles.removeAll(overlappingSun(particles));
 
-
-
             time += dt;
 
             if (exportFrames && i % OVITO_DT == 0) {
-                System.out.println("Progress: " + defaultFormat.format(time / MAX_TIME));
                 ovitoParticles.clear();
                 ovitoParticles.add(sun);
                 ovitoParticles.addAll(particles);
@@ -147,11 +144,8 @@ public class Orbit {
 
 
             if (i % EXPORT_DT == 0) {
-                if (exportEnergy) {
-                    System.out.println(DecimalFormat.getPercentInstance().format(time/MAX_TIME));
+                if (exportData) {
                     data.get(DataType.TIME).add(time);
-                    data.get(DataType.ENERGY).add(getSystemEnergy(particles));
-                    data.get(DataType.KINETIC_ENERGY).add(getSystemKineticEnergy(particles));
                     data.get(DataType.PARTICLE_COUNT).add((double) particles.size());
                     data.get(DataType.CLOCKWISE_PARTICLES).add((double) getParticlesMoving(Orientation.CLOCK));
                     data.get(DataType.COLLISIONS).add(collidedParticles);
@@ -172,14 +166,6 @@ public class Orbit {
         return particles.stream().filter(p -> p.getOrientation() == orientation).count();
     }
 
-    private static double getSystemEnergy(Collection<Particle> particles) {
-        return particles.stream().mapToDouble(p -> p.computeEnergy(sun)).sum();
-    }
-
-    private static double getSystemKineticEnergy(Collection<Particle> particles) {
-        return particles.stream().mapToDouble(Particle::kineticEnergy).sum();
-    }
-
     private static Collection<Particle> overlappingSun(Collection<Particle> particles) {
         return particles.stream().filter(p -> p.isOverlapping(sun)).collect(Collectors.toCollection(ArrayList::new));
     }
@@ -190,6 +176,7 @@ public class Orbit {
             for (int j = i + 1; j < particles.size(); j++) {
                 Particle pj = particles.get(j);
                 if (pi.isOverlapping(pj)) {
+                    lastCollisionTime = time;
                     pi.setColliding(true);
                     pj.setColliding(true);
                     computeCollision(pi, pj);
@@ -288,9 +275,9 @@ public class Orbit {
                 .required(false)
                 .desc("export_frames")
                 .build();
-        Option export_energy = Option.builder("energy")
+        Option export_data = Option.builder("data")
                 .required(false)
-                .desc("export_energy")
+                .desc("export_data")
                 .build();
         Option max_time = Option.builder("T")
                 .required(false)
@@ -311,7 +298,7 @@ public class Orbit {
         Options options = new Options();
         options.addOption(option_dt);
         options.addOption(export_frames);
-        options.addOption(export_energy);
+        options.addOption(export_data);
         options.addOption(max_time);
         options.addOption(orientation);
         options.addOption(output);
@@ -321,11 +308,11 @@ public class Orbit {
 
         if(commandLine.hasOption("dt")) {
             dt = Double.parseDouble(commandLine.getOptionValue("dt"));
-            OVITO_DT = (int) (MAX_TIME / (dt * FRAME_COUNT));
-            EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
+            OVITO_DT = (int) (1 / dt);
+            EXPORT_DT = (int) (1 / dt);
         }
         if(commandLine.hasOption("T")) {
-            MAX_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
+            STABILITY_TIME = Double.parseDouble(commandLine.getOptionValue("T"));
         }
         if (commandLine.hasOption("o")) {
             o = Double.parseDouble(commandLine.getOptionValue("o"));
@@ -335,14 +322,12 @@ public class Orbit {
         }
 
         exportFrames  = commandLine.hasOption("frames");
-        exportEnergy = commandLine.hasOption("energy");
+        exportData = commandLine.hasOption("data");
     }
 
     public static List<Orbit.DataType> getVariableDataHeader() {
         return Arrays.asList(
                 DataType.TIME,
-                DataType.ENERGY,
-                DataType.KINETIC_ENERGY,
                 DataType.PARTICLE_COUNT,
                 DataType.CLOCKWISE_PARTICLES,
                 DataType.COLLISIONS);
