@@ -141,7 +141,7 @@ public class Particle {
     }
 
     public double potentialEnergy(Particle sun) {
-        return - Orbit.GRAVITY  * sun.getMass() * mass / getVectorDistance(sun);
+        return - Orbit.G  * sun.getMass() * mass / getVectorDistance(sun);
     }
 
     public double computeEnergy(Particle sun) {

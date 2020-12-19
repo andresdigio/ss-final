@@ -22,7 +22,7 @@ public class Orbit {
     private static final double SPAWN_DISTANCE = 300;
     private static final double VT0 = 13;
     private static final double VN0 = 2;
-    public static final double GRAVITY = 9.8;
+    public static final double G = 9.8;     // Gravitational constant! Not to be confused with gravitational acceleration (g)
 
     private static double MAX_TIME = 50;
     public static double dt;
@@ -55,7 +55,7 @@ public class Orbit {
     private static final double forceLoss = 0.5;
 
     private static List<Integer> exportIdxs = new ArrayList<>();
-    private static final int EXPORT_COUNT = 1000;
+    private static final int EXPORT_COUNT = 5;
     private static int EXPORT_DT = (int) (MAX_TIME / (dt * EXPORT_COUNT));
 
     public enum Orientation {
@@ -93,7 +93,7 @@ public class Orbit {
         parseArguments(args);
 
         for (int i = 2; i <= 2; i++) {
-            N = 50;
+            N = 20;
 
             initializeDataArrays();
             timeIdx = 0;
@@ -235,7 +235,7 @@ public class Orbit {
             return;
 
         double theta = FastAtan.atan2(p.getY(), p.getX());
-        double fMag = GRAVITY * p.getMass() * sun.getMass() / p.distance_sq(sun);
+        double fMag = G * p.getMass() * sun.getMass() / p.distance_sq(sun);
         double fx = - fMag * Math.cos(theta);
         double fy = - fMag * Math.sin(theta);
 
