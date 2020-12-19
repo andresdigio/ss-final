@@ -8,6 +8,5 @@ def run_simulation(ST, dt, o, path):
     os.system(cmd)
 
 for o in [0.5, 0.7, 0.9]:
-    for i in [1]:
-    #for i in [1, 2, 3, 4, 5]:
-        run_simulation(1000, 5e-5, 0.5, '{:d}/{:d}.data'.format(int(o*100), i))
+    for i in [1, 2, 3, 4, 5]:
+        run_simulation(1000, 5e-5, o, '{:d}/{:d}.data'.format(int(o*100), i))
