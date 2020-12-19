@@ -95,21 +95,21 @@ def calc_df_sum(dataframes, col_name):
     return dataframes[0]
 
 
-def plot_count_with_mean_and_error():
+def plot_count_with_mean_and_error(orientation_percentages):
     plt.figure()
     plt.xlabel('Tiempo [s]')
-    plt.ylabel('Cantidad de partículas')
+    plt.ylabel('% de partículas en sentido horario')
 
-    for percentage in np.arange(50, 51, 20):
+    for percentage in orientation_percentages:
         data_frames = [pd.read_csv(data_file) for data_file in get_data_files(str(percentage))]
         gp = pd.concat(data_frames).groupby(['t'])
         means = gp.mean()
         error = gp.std()
         plt.yticks(np.arange(0, 51, 2))
         plt.grid(b=True, which='both', axis='y', linestyle=':')
-        plt.errorbar(means.index, means['n'], yerr=error['n'], marker='.', fmt='o', mfc='c', capthick=2, ms=7, label=data_frames[0]['N'][0])
+        plt.errorbar(means.index, means['n'], yerr=error['n'], marker='.', fmt='o', mfc='c', capthick=2, ms=7, label=percentage)
     handles, labels = get_handles_and_labels_for_sorted_legend()
-    legend = plt.legend(handles, labels, loc='best', title='% de partículas en sentido horario')
+    legend = plt.legend(handles, labels, loc='best', title='% de partículas')
     plt.setp(legend.get_title(), multialignment='center')
     plt.show()
     plt.close()
@@ -120,5 +120,5 @@ def plot_count_with_mean_and_error():
 # plot_results('% de partículas en sentido horario', plot_clockwise_particles)
 # plot_results('Colisiones', plot_collisions)
 # plot_results('Cantidad de partículas', plot_count)
-plot_count_with_mean_and_error()
+plot_count_with_mean_and_error(orientation_percentages=[50, 70, 90])
 # plot_survivors(N=50)
