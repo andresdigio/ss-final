@@ -50,6 +50,7 @@ public class Orbit {
     private static final double HEIGHT = 300;
 
     private static boolean exportFrames = false, exportEnergy = false;
+    private static String fileOut = null;
 
     private static Map<DataType, List<Double>> data = new HashMap<>();
     private static final double forceLoss = 0.5;
@@ -100,9 +101,10 @@ public class Orbit {
             simulate();
 
             DataExporter dataExporter = new DataExporter();
-            String fileName = dt + "," + N + ".data";
+            if (fileOut == null)
+             fileOut = dt + "," + N + ".data";
 
-            dataExporter.export(data, fileName);
+            dataExporter.export(data, fileOut);
         }
     }
 
@@ -300,6 +302,11 @@ public class Orbit {
                 .desc("orientation_rate")
                 .hasArg()
                 .build();
+        Option output = Option.builder("out")
+                .required(false)
+                .desc("output")
+                .hasArg()
+                .build();
 
         Options options = new Options();
         options.addOption(option_dt);
@@ -307,6 +314,7 @@ public class Orbit {
         options.addOption(export_energy);
         options.addOption(max_time);
         options.addOption(orientation);
+        options.addOption(output);
         CommandLineParser parser = new DefaultParser();
 
         commandLine = parser.parse(options, args);
@@ -321,6 +329,9 @@ public class Orbit {
         }
         if (commandLine.hasOption("o")) {
             o = Double.parseDouble(commandLine.getOptionValue("o"));
+        }
+        if (commandLine.hasOption("out")) {
+            fileOut = commandLine.getOptionValue("out");
         }
 
         exportFrames  = commandLine.hasOption("frames");
