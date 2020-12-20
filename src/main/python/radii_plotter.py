@@ -5,12 +5,12 @@ import numpy as np
 from plotting_utils import get_handles_and_labels_for_sorted_legend, get_data_folder, plot_mean_and_error, JAR_PATH
 
 
-def plot_radii_with_mean_and_error(radii):
+def plot_radii_with_mean_and_error(radii, sub_folder_prefix):
     plt.figure()
     plt.xlabel('Tiempo [s]')
     plt.ylabel('Cantidad de partículas orbitando')
 
-    plot_mean_and_error(radii)
+    plot_mean_and_error(radii, sub_folder_prefix)
 
     plt.yticks(np.arange(0, 21, 2))
     handles, labels = get_handles_and_labels_for_sorted_legend()
@@ -48,8 +48,11 @@ def move_data_file_to_own_folder(radius, run):
 
 radii_arg = [1, 2, 3]
 runs_arg = np.arange(5)
-run_multiple_simulations(runs_arg, radii_arg)
-plot_radii_with_mean_and_error(radii_arg)
+# run_multiple_simulations(runs_arg, radii_arg)
+# plot_radii_with_mean_and_error(radii_arg, 'r')
+plot_radii_with_mean_and_error([1], 'r')
+plot_radii_with_mean_and_error([2], 'r')
+plot_radii_with_mean_and_error([3], 'r')
 
 
 # Not sure if these might needed

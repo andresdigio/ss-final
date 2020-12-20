@@ -1,7 +1,8 @@
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from plotting_utils import get_handles_and_labels_for_sorted_legend, get_data_folder, plot_mean_and_error, JAR_PATH
+import pandas as pd
+from plotting_utils import get_data_files, get_handles_and_labels_for_sorted_legend, get_data_folder, average, JAR_PATH
 
 
 def plot_in_and_out_with_mean_and_error(N_particles):
@@ -9,7 +10,19 @@ def plot_in_and_out_with_mean_and_error(N_particles):
     plt.xlabel('% inicial de partículas en sentido horario')
     plt.ylabel('% final de partículas en sentido horario')
 
-    plot_mean_and_error(N_particles)
+    # Plotting logic
+    for N in N_particles:
+        N_folder = get_data_folder('in_vs_out/n' + str(N))
+        in_o = []
+        out_o = []
+
+        for percentage in os.listdir(N_folder):
+            percentage_folder = N_folder + '/' + percentage
+            data_frames = [pd.read_csv(os.path.join(percentage_folder, data_file)) for data_file in os.listdir(percentage_folder)]
+            in_o.append(100 * average([df.o.iat[0] for df in data_frames]))
+            out_o.append(100 * average([df.clock.iat[-1]/df.n.iat[-1] for df in data_frames]))
+
+        plt.plot(in_o, out_o, marker='.', mfc='c', label=N)
 
     plt.xticks(np.arange(0, 101, 10))
     plt.yticks(np.arange(0, 101, 10))
@@ -48,5 +61,8 @@ def move_data_file_to_own_folder(N, run):
 
 N_particles_arg = [10, 15, 20]
 runs_arg = np.arange(5)
-run_multiple_simulations(runs_arg, N_particles_arg)
+# run_multiple_simulations(runs_arg, N_particles_arg)
 plot_in_and_out_with_mean_and_error(N_particles_arg)
+# plot_in_and_out_with_mean_and_error([10])
+# plot_in_and_out_with_mean_and_error([15])
+# plot_in_and_out_with_mean_and_error([20])
