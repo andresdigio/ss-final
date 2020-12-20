@@ -1,6 +1,6 @@
 import os
 
-jar_path = 'C:/Users/Andres/ss-final/target/ss-final-1.0-jar-with-dependencies.jar'
+jar_path = '/Users/andres/itba/ss-final/target/ss-final-1.0-jar-with-dependencies.jar'
 
 def run_simulation(T, dt, o, path):
     cmd = 'java -jar {:s} -data -T {:g} -dt {:g} -o {:g} -out {:s}'.format(jar_path, T, dt, o, path)
