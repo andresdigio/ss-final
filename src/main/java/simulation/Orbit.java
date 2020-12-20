@@ -59,7 +59,7 @@ public class Orbit {
     private static final double forceLoss = 0.5;
 
     private static List<Integer> exportIdxs = new ArrayList<>();
-    private static int EXPORT_DT = (int) (1 / dt);
+    private static int EXPORT_DT = (int) (15 / dt);
 
     public enum Orientation {
         CLOCK,
@@ -94,8 +94,6 @@ public class Orbit {
         parseArguments(args);
 
         for (int i = 2; i <= 2; i++) {
-            N = 20;
-
             initializeDataArrays();
             timeIdx = 0;
             simulate();
@@ -310,6 +308,11 @@ public class Orbit {
                 .desc("output")
                 .hasArg()
                 .build();
+        Option n = Option.builder("n")
+                .required(false)
+                .desc("n")
+                .hasArg()
+                .build();
 
         Options options = new Options();
         options.addOption(option_dt);
@@ -319,6 +322,7 @@ public class Orbit {
         options.addOption(stability_time);
         options.addOption(orientation);
         options.addOption(output);
+        options.addOption(n);
         CommandLineParser parser = new DefaultParser();
 
         commandLine = parser.parse(options, args);
@@ -339,6 +343,9 @@ public class Orbit {
         }
         if (commandLine.hasOption("out")) {
             fileOut = commandLine.getOptionValue("out");
+        }
+        if (commandLine.hasOption("n")) {
+            N = Integer.parseInt(commandLine.getOptionValue("n"));
         }
 
         exportFrames  = commandLine.hasOption("frames");

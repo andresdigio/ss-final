@@ -131,8 +131,67 @@ def plot_time_with_mean_and_error(orientation_percentages):
         means = gp.mean()
         error = gp.std()
         plt.grid(b=True, which='both', axis='y', linestyle=':')
-        plt.errorbar(means.index, means['t'], yerr=error['t'], marker='.', fmt='o', mfc='c', capthick=2, ms=7, label=percentage)
+        plt.errorbar(means.index, means['t'], yerr=error['t'], marker='.', fmt='o', mfc='b', capthick=2, ms=7, label=percentage)
 
+
+    plt.savefig('C:/Users/Andres/ss-final/graphs/time.png')
+    #handles, labels = get_handles_and_labels_for_sorted_legend()
+    #legend = plt.legend(handles, labels, loc='best', title='% de partículas')
+    #plt.setp(legend.get_title(), multialignment='center')
+    plt.show()
+    plt.close()
+
+def plot_survivors_with_mean_and_error(orientation_percentages, N=20):
+    plt.figure()
+    plt.ylabel('Porcentaje de particulas vivas [%]')
+    plt.xlabel('Distribucion de orientacion inicial en sentido horario [%]')
+
+    df = pd.DataFrame(orientation_percentages)
+
+    for percentage in orientation_percentages:
+        data_frames = [pd.read_csv(data_file) for data_file in get_data_files(str(percentage))]
+        survivors = [df.iloc[-1].n*100.0/20 for df in data_frames]
+        tmpdf = pd.DataFrame(survivors, columns=['s_rate'])
+        tmpdf['o'] = percentage
+
+        df = df.append(tmpdf)
+
+        gp = df.groupby(['o'])
+        means = gp.mean()
+        error = gp.std()
+        plt.grid(b=True, which='both', axis='y', linestyle=':')
+        plt.errorbar(means.index, means['s_rate'], yerr=error['s_rate'], marker='.', fmt='o', mfc='b', capthick=2, ms=7, label=percentage)
+
+
+    #plt.savefig('C:/Users/Andres/ss-final/graphs/time.png')
+    #handles, labels = get_handles_and_labels_for_sorted_legend()
+    #legend = plt.legend(handles, labels, loc='best', title='% de partículas')
+    #plt.setp(legend.get_title(), multialignment='center')
+    plt.show()
+    plt.close()
+
+def plot_orientation_in_time_with_mean_and_error(orientation_percentages, N=20):
+    plt.figure()
+    plt.ylabel('Porcentaje de particulas orbitando en sentido horario [%]')
+    plt.xlabel('Tiempo [s]')
+
+    for percentage in orientation_percentages:
+        data_frames = [pd.read_csv(data_file) for data_file in get_data_files(str(percentage))]
+
+        df = pd.concat(data_frames)
+        df = df[df.index % 15 == 0]
+        df['clock_rate'] = 100*df['clock']/df['n']
+        print(df)
+        gp = df.groupby(['t'])
+        means = gp.mean()
+        error = gp.std()
+        print(means)
+        print(error)
+        plt.grid(b=True, which='both', axis='y', linestyle=':')
+        plt.errorbar(means.index, means['clock_rate'], yerr=error['clock_rate'], marker='.', fmt='o', mfc='b', capthick=2, ms=7, label=percentage)
+
+
+    #plt.savefig('C:/Users/Andres/ss-final/graphs/time.png')
     handles, labels = get_handles_and_labels_for_sorted_legend()
     legend = plt.legend(handles, labels, loc='best', title='% de partículas')
     plt.setp(legend.get_title(), multialignment='center')
@@ -144,5 +203,7 @@ def plot_time_with_mean_and_error(orientation_percentages):
 # plot_results('% de partículas en sentido horario', plot_clockwise_particles)
 # plot_results('Colisiones', plot_collisions)
 # plot_results('Cantidad de partículas', plot_count)
-plot_time_with_mean_and_error(orientation_percentages=[50, 70, 90])
+#plot_time_with_mean_and_error(orientation_percentages=[50, 70, 90])
+plot_survivors_with_mean_and_error([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+#plot_orientation_in_time_with_mean_and_error([30, 60, 80])
 # plot_survivors(N=50)
