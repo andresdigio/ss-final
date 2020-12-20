@@ -14,8 +14,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class DataExporter {
-    private static final Path results = Paths.get("results");
-    private static final Path dataDir = Paths.get("data");
+    private static final Path cwd = Paths.get(System.getProperty("user.dir"));
+    private static final Path projectDir = cwd.getParent().getParent().getParent();
+    private static final Path results = projectDir.resolve("results");
+    private static final Path dataDir = projectDir.resolve("data");
 
     public DataExporter() throws IOException {
         try {

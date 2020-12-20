@@ -18,7 +18,7 @@ public class Orbit {
     private static final double SUN_MASS = 5000;
     private static final double SUN_RADIUS = 50;
     private static final double PARTICLE_MASS = 1;
-    private static final double PARTICLE_RADIUS = 2;
+    private static double PARTICLE_RADIUS = 2;
     private static final double SPAWN_DISTANCE = 300;
     private static final double VT0 = 13;
     private static final double VN0 = 2;
@@ -32,13 +32,11 @@ public class Orbit {
     public static double lastDeathTime = 0;
     public static double time = 0;
 
-    public static int N = 50;
+    public static int N = 20;
 
     private static double kn = 10e5;
     private static double kt = 2*kn;
 
-    private static double slidingWindow = 0.8;     // Probando a ojimetro
-//    private static List<Double> collidedParticles = new ArrayList<>();
     private static double collidedParticles = 0;
 
     private static NumberFormat defaultFormat = NumberFormat.getPercentInstance();
@@ -93,18 +91,16 @@ public class Orbit {
     public static void main(String[] args) throws Exception {
         parseArguments(args);
 
-        for (int i = 2; i <= 2; i++) {
-            initializeDataArrays();
-            timeIdx = 0;
-            simulate();
+        initializeDataArrays();
+        timeIdx = 0;
+        simulate();
 
-            DataExporter dataExporter = new DataExporter();
-            if (fileOut == null)
-             fileOut = dt + "," + N + ".data";
+        DataExporter dataExporter = new DataExporter();
+        if (fileOut == null)
+         fileOut = dt + "," + N + ".data";
 
-            System.out.println("Saving data file to: " + fileOut);
-            dataExporter.export(data, fileOut);
-        }
+        System.out.println("Saving data file to: " + fileOut);
+        dataExporter.export(data, fileOut);
     }
 
     private static void initializeDataArrays() {
@@ -303,6 +299,16 @@ public class Orbit {
                 .desc("orientation_rate")
                 .hasArg()
                 .build();
+        Option radius = Option.builder("r")
+                .required(false)
+                .desc("particle_radius")
+                .hasArg()
+                .build();
+        Option nParticles = Option.builder("N")
+                .required(false)
+                .desc("N_particles")
+                .hasArg()
+                .build();
         Option output = Option.builder("out")
                 .required(false)
                 .desc("output")
@@ -321,6 +327,8 @@ public class Orbit {
         options.addOption(max_time);
         options.addOption(stability_time);
         options.addOption(orientation);
+        options.addOption(radius);
+        options.addOption(nParticles);
         options.addOption(output);
         options.addOption(n);
         CommandLineParser parser = new DefaultParser();
@@ -340,6 +348,12 @@ public class Orbit {
         }
         if (commandLine.hasOption("o")) {
             o = Double.parseDouble(commandLine.getOptionValue("o"));
+        }
+        if (commandLine.hasOption("r")) {
+            PARTICLE_RADIUS = Double.parseDouble(commandLine.getOptionValue("r"));
+        }
+        if (commandLine.hasOption("N")) {
+            N = Integer.parseInt(commandLine.getOptionValue("N"));
         }
         if (commandLine.hasOption("out")) {
             fileOut = commandLine.getOptionValue("out");
